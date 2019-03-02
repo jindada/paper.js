@@ -583,23 +583,19 @@ var Curve = Base.extend(/** @lends Curve# */{
     },
 
 statics: /** @lends Curve */{
-    getValues: function(segment1, segment2, matrix, straight) {
+    getValues: function(segment1, segment2) {
         var p1 = segment1._point,
             h1 = segment1._handleOut,
             h2 = segment2._handleIn,
             p2 = segment2._point,
             x1 = p1.x, y1 = p1.y,
             x2 = p2.x, y2 = p2.y,
-            values = straight
-                ? [ x1, y1, x1, y1, x2, y2, x2, y2 ]
-                : [
+            values = [
                     x1, y1,
                     x1 + h1._x, y1 + h1._y,
                     x2 + h2._x, y2 + h2._y,
                     x2, y2
                 ];
-        if (matrix)
-            matrix._transformCoordinates(values, values, 4);
         return values;
     },
 
@@ -725,27 +721,28 @@ statics: /** @lends Curve */{
         // Since we're comparing with geometric epsilon for any other t along
         // the curve, do so as well now for the beginning and end of the curve.
         return point.isClose(p0, geomEpsilon) ? 0
-             : point.isClose(p3, geomEpsilon) ? 1
-             : null;
+            : point.isClose(p3, geomEpsilon) ? 1
+            : null;
     },
 
     getNearestTime: function(v, point) {
-        if (Curve.isStraight(v)) {
-            var x0 = v[0], y0 = v[1],
-                x3 = v[6], y3 = v[7],
-                vx = x3 - x0, vy = y3 - y0,
-                det = vx * vx + vy * vy;
-            // Avoid divisions by zero.
-            if (det === 0)
-                return 0;
-            // Project the point onto the line and calculate its linear
-            // parameter u along the line: u = (point - p1).dot(v) / v.dot(v)
-            var u = ((point.x - x0) * vx + (point.y - y0) * vy) / det;
-            return u < /*#=*/Numerical.EPSILON ? 0
-                 : u > /*#=*/(1 - Numerical.EPSILON) ? 1
-                 : Curve.getTimeOf(v,
-                    new Point(x0 + u * vx, y0 + u * vy));
-        }
+        // if (Curve.isStraight(v)) {
+        //     debugger;
+        //     var x0 = v[0], y0 = v[1],
+        //         x3 = v[6], y3 = v[7],
+        //         vx = x3 - x0, vy = y3 - y0,
+        //         det = vx * vx + vy * vy;
+        //     // Avoid divisions by zero.
+        //     if (det === 0)
+        //         return 0;
+        //     // Project the point onto the line and calculate its linear
+        //     // parameter u along the line: u = (point - p1).dot(v) / v.dot(v)
+        //     var u = ((point.x - x0) * vx + (point.y - y0) * vy) / det;
+        //     return u < /*#=*/Numerical.EPSILON ? 0
+        //         : u > /*#=*/(1 - Numerical.EPSILON) ? 1
+        //         : Curve.getTimeOf(v,
+        //             new Point(x0 + u * vx, y0 + u * vy));
+        // }
 
         var count = 100,
             minDist = Infinity,
@@ -1430,7 +1427,7 @@ new function() { // Scope for methods that require private functions
         return Math.max(2, Math.min(16, Math.ceil(Math.abs(b - a) * 32)));
     }
 
-    function evaluate(v, t, type, normalized) {
+    function evaluate(v, t) {
         // Do not produce results if parameter is out of range or invalid.
         if (t == null || t < 0 || t > 1)
             return null;
@@ -1457,66 +1454,66 @@ new function() { // Scope for methods that require private functions
             by = 3 * (y2 - y1) - cy,
             ay = y3 - y0 - cy - by,
             x, y;
-        if (type === 0) {
+        // if (type === 0) {
             // type === 0: getPoint()
             // Calculate the curve point at parameter value t
             // Use special handling at t === 0 / 1, to avoid imprecisions.
             // See #960
-            x = t === 0 ? x0 : t === 1 ? x3
-                    : ((ax * t + bx) * t + cx) * t + x0;
-            y = t === 0 ? y0 : t === 1 ? y3
-                    : ((ay * t + by) * t + cy) * t + y0;
-        } else {
-            // type === 1: getTangent()
-            // type === 2: getNormal()
-            // type === 3: getCurvature()
-            var tMin = /*#=*/Numerical.CURVETIME_EPSILON,
-                tMax = 1 - tMin;
-            // 1: tangent, 1st derivative
-            // 2: normal, 1st derivative
-            // 3: curvature, 1st derivative & 2nd derivative
-            // Prevent tangents and normals of length 0:
-            // https://stackoverflow.com/questions/10506868/
-            if (t < tMin) {
-                x = cx;
-                y = cy;
-            } else if (t > tMax) {
-                x = 3 * (x3 - x2);
-                y = 3 * (y3 - y2);
-            } else {
-                x = (3 * ax * t + 2 * bx) * t + cx;
-                y = (3 * ay * t + 2 * by) * t + cy;
-            }
-            if (normalized) {
-                // When the tangent at t is zero and we're at the beginning
-                // or the end, we can use the vector between the handles,
-                // but only when normalizing as its weighted length is 0.
-                if (x === 0 && y === 0 && (t < tMin || t > tMax)) {
-                    x = x2 - x1;
-                    y = y2 - y1;
-                }
-                // Now normalize x & y
-                var len = Math.sqrt(x * x + y * y);
-                if (len) {
-                    x /= len;
-                    y /= len;
-                }
-            }
-            if (type === 3) {
-                // Calculate 2nd derivative, and curvature from there:
-                // http://cagd.cs.byu.edu/~557/text/ch2.pdf page#31
-                // k = |dx * d2y - dy * d2x| / (( dx^2 + dy^2 )^(3/2))
-                var x2 = 6 * ax * t + 2 * bx,
-                    y2 = 6 * ay * t + 2 * by,
-                    d = Math.pow(x * x + y * y, 3 / 2);
-                // For JS optimizations we always return a Point, although
-                // curvature is just a numeric value, stored in x:
-                x = d !== 0 ? (x * y2 - y * x2) / d : 0;
-                y = 0;
-            }
-        }
+        x = t === 0 ? x0 : t === 1 ? x3
+                : ((ax * t + bx) * t + cx) * t + x0;
+        y = t === 0 ? y0 : t === 1 ? y3
+                : ((ay * t + by) * t + cy) * t + y0;
+        // } else {
+        //     // type === 1: getTangent()
+        //     // type === 2: getNormal()
+        //     // type === 3: getCurvature()
+        //     var tMin = /*#=*/Numerical.CURVETIME_EPSILON,
+        //         tMax = 1 - tMin;
+        //     // 1: tangent, 1st derivative
+        //     // 2: normal, 1st derivative
+        //     // 3: curvature, 1st derivative & 2nd derivative
+        //     // Prevent tangents and normals of length 0:
+        //     // https://stackoverflow.com/questions/10506868/
+        //     if (t < tMin) {
+        //         x = cx;
+        //         y = cy;
+        //     } else if (t > tMax) {
+        //         x = 3 * (x3 - x2);
+        //         y = 3 * (y3 - y2);
+        //     } else {
+        //         x = (3 * ax * t + 2 * bx) * t + cx;
+        //         y = (3 * ay * t + 2 * by) * t + cy;
+        //     }
+        //     // if (normalized) {
+        //     //     // When the tangent at t is zero and we're at the beginning
+        //     //     // or the end, we can use the vector between the handles,
+        //     //     // but only when normalizing as its weighted length is 0.
+        //     //     if (x === 0 && y === 0 && (t < tMin || t > tMax)) {
+        //     //         x = x2 - x1;
+        //     //         y = y2 - y1;
+        //     //     }
+        //     //     // Now normalize x & y
+        //     //     var len = Math.sqrt(x * x + y * y);
+        //     //     if (len) {
+        //     //         x /= len;
+        //     //         y /= len;
+        //     //     }
+        //     // }
+        //     if (type === 3) {
+        //         // Calculate 2nd derivative, and curvature from there:
+        //         // http://cagd.cs.byu.edu/~557/text/ch2.pdf page#31
+        //         // k = |dx * d2y - dy * d2x| / (( dx^2 + dy^2 )^(3/2))
+        //         var x2 = 6 * ax * t + 2 * bx,
+        //             y2 = 6 * ay * t + 2 * by,
+        //             d = Math.pow(x * x + y * y, 3 / 2);
+        //         // For JS optimizations we always return a Point, although
+        //         // curvature is just a numeric value, stored in x:
+        //         x = d !== 0 ? (x * y2 - y * x2) / d : 0;
+        //         y = 0;
+        //     }
+        // }
         // The normal is simply the rotated tangent:
-        return type === 2 ? new Point(y, -x) : new Point(x, y);
+        return new Point(x, y);
     }
 
     return { statics: {
@@ -1621,6 +1618,7 @@ new function() { // Scope for methods that require private functions
         },
 
         getTimeAt: function(v, offset, start) {
+            console.log('~~~~~~~~~~~~', "getTimeAt");
             if (start === undefined)
                 start = offset < 0 ? 1 : 0;
             if (offset === 0)

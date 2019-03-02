@@ -41,20 +41,21 @@ var CurveLocation = Base.extend(/** @lends CurveLocation# */{
     initialize: function CurveLocation(curve, time, point, _overlap, _distance) {
         // Merge intersections very close to the end of a curve with the
         // beginning of the next curve.
-        if (time >= /*#=*/(1 - Numerical.CURVETIME_EPSILON)) {
-            var next = curve.getNext();
-            if (next) {
-                time = 0;
-                curve = next;
-            }
-        }
+        // if (time >= /*#=*/(1 - Numerical.CURVETIME_EPSILON)) {
+        //     var next = curve.getNext();
+        //     if (next) {
+        //         console.log('~~~~~~~~~~~~~~~~~~~~~~')
+        //         time = 0;
+        //         curve = next;
+        //     }
+        // }
         this._setCurve(curve);
         this._time = time;
-        this._point = point || curve.getPointAtTime(time);
+        this._point = point;
         this._overlap = _overlap;
         this._distance = _distance;
         // Properties related to linked intersection locations
-        this._intersection = this._next = this._previous = null;
+        // this._intersection = this._next = this._previous = null;
     },
 
     _setCurve: function(curve) {
@@ -63,7 +64,7 @@ var CurveLocation = Base.extend(/** @lends CurveLocation# */{
         // To ensure we use the right path (e.g. after splitting), we shall
         // always access the path on the result of getCurve().
         this._path = path;
-        this._version = path ? path._version : 0;
+        // this._version = path ? path._version : 0;
         this._curve = curve;
         this._segment = null; // To be determined, see #getSegment()
         // Also store references to segment1 and segment2, in case path
@@ -162,8 +163,7 @@ var CurveLocation = Base.extend(/** @lends CurveLocation# */{
      * @type Number
      */
     getIndex: function() {
-        var curve = this.getCurve();
-        return curve && curve.getIndex();
+        return this.curve && this.curve.getIndex();
     },
 
     /**

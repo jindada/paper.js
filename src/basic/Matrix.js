@@ -657,20 +657,17 @@ var Matrix = Base.extend(/** @lends Matrix# */{
             b = this._b,
             c = this._c,
             d = this._d,
-            tx = this._tx,
-            ty = this._ty,
             det = a * d - b * c,
             res = null;
-        if (det && !isNaN(det) && isFinite(tx) && isFinite(ty)) {
-            var x = point.x - this._tx,
-                y = point.y - this._ty;
-            if (!dest)
-                dest = new Point();
-            res = dest._set(
-                    (x * d - y * c) / det,
-                    (y * a - x * b) / det,
-                    _dontNotify);
-        }
+        
+
+        var x = point.x - this._tx,
+            y = point.y - this._ty;
+        if (!dest)
+            dest = new Point();
+        res = dest._set(
+                (x * d - y * c) / det,
+                (y * a - x * b) / det);
         return res;
     },
 

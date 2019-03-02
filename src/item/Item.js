@@ -1977,114 +1977,91 @@ new function() { // Injection scope for hit-test functions shared with project
      * @see #hitTest(point[, options]);
      */
 
-    _hitTest: function(point, options, parentViewMatrix) {
-        if (this._locked || !this._visible || this._guide && !options.guides
-                || this.isEmpty()) {
-            return null;
-        }
-
+    _hitTest: function(point, options) {
+        
         // Check if the point is withing roughBounds + tolerance, but only if
         // this item does not have children, since we'd have to travel up the
         // chain already to determine the rough bounds.
-        var matrix = this._matrix,
+        var matrix = this._matrix;
             // Keep the accumulated matrices up to this item in options, so we
             // can keep calculating the correct _tolerancePadding values.
-            viewMatrix = parentViewMatrix
-                    ? parentViewMatrix.appended(matrix)
-                    // If this is the first one in the recursion, factor in the
-                    // zoom of the view and the globalMatrix of the item.
-                    : this.getGlobalMatrix().prepend(this.getView()._matrix),
+        // var viewMatrix =this.getGlobalMatrix().prepend(this.getView()._matrix);
             // Calculate the transformed padding as 2D size that describes the
             // transformed tolerance circle / ellipse. Make sure it's never 0
             // since we're using it for division (see checkBounds()).
-            tolerance = Math.max(options.tolerance, /*#=*/Numerical.EPSILON),
+        var tolerance = Math.max(options.tolerance, /*#=*/Numerical.EPSILON);
             // Hit-tests are performed in the item's local coordinate space.
             // To calculate the correct 2D padding for tolerance, we therefore
             // need to apply the inverted item matrix.
-            tolerancePadding = options._tolerancePadding = new Size(
-                    Path._getStrokePadding(tolerance,
-                        matrix._shiftless().invert()));
+        options._tolerancePadding = new Size(tolerance, tolerance);
         // Transform point to local coordinates.
         point = matrix._inverseTransform(point);
         // If the matrix is non-reversible, point will now be `null`:
-        if (!point || !this._children &&
-            !this.getBounds({ internal: true, stroke: true, handle: true })
-                .expand(tolerancePadding.multiply(2))._containsPoint(point)) {
-            return null;
-        }
+        // if (!point || !this._children &&
+        //     !this.getBounds({ internal: true, stroke: true, handle: true })
+        //         .expand(tolerancePadding.multiply(2))._containsPoint(point)) {
+        //     return null;
+        // }
 
         // See if we should check self (own content), by filtering for type,
         // guides and selected items if that's required.
-        var checkSelf = !(options.guides && !this._guide
-                || options.selected && !this.isSelected()
-                // Support legacy Item#type property to match hyphenated
-                // class-names.
-                || options.type && options.type !== Base.hyphenate(this._class)
-                || options.class && !(this instanceof options.class)),
-            match = options.match,
-            that = this,
-            bounds,
-            res;
+        // var checkSelf = !(options.guides && !this._guide
+        //         || options.selected && !this.isSelected()
+        //         // Support legacy Item#type property to match hyphenated
+        //         // class-names.
+        //         || options.type && options.type !== Base.hyphenate(this._class)
+        //         || options.class && !(this instanceof options.class)),
+        //     match = options.match,
+        //     res;
 
-        function filter(hit) {
-            if (hit && match && !match(hit))
-                hit = null;
-            // If we're collecting all matches, add it to options.all
-            if (hit && options.all)
-                options.all.push(hit);
-            return hit;
-        }
+        // function filter(hit) {
+        //     if (hit && match && !match(hit))
+        //         hit = null;
+        //     // If we're collecting all matches, add it to options.all
+        //     if (hit && options.all)
+        //         options.all.push(hit);
+        //     return hit;
+        // }
 
-        function checkPoint(type, part) {
-            var pt = part ? bounds['get' + part]() : that.getPosition();
-            // Since there are transformations, we cannot simply use a numerical
-            // tolerance value. Instead, we divide by a padding size, see above.
-            if (point.subtract(pt).divide(tolerancePadding).length <= 1) {
-                return new HitResult(type, that, {
-                    name: part ? Base.hyphenate(part) : type,
-                    point: pt
-                });
-            }
-        }
+        // function checkPoint(type, part) {
+        //     var pt = part ? bounds['get' + part]() : that.getPosition();
+        //     // Since there are transformations, we cannot simply use a numerical
+        //     // tolerance value. Instead, we divide by a padding size, see above.
+        //     if (point.subtract(pt).divide(tolerancePadding).length <= 1) {
+        //         return new HitResult(type, that, {
+        //             name: part ? Base.hyphenate(part) : type,
+        //             point: pt
+        //         });
+        //     }
+        // }
 
-        var checkPosition = options.position,
-            checkCenter = options.center,
-            checkBounds = options.bounds;
-        // Ignore top level layers by checking for _parent:
-        if (checkSelf && this._parent
-                && (checkPosition || checkCenter || checkBounds)) {
-            if (checkCenter || checkBounds) {
-                // Get the internal, untransformed bounds, as we check against
-                // transformed points.
-                bounds = this.getInternalBounds();
-            }
-            res = checkPosition && checkPoint('position') ||
-                    checkCenter && checkPoint('center', 'Center');
-            if (!res && checkBounds) {
-                // TODO: Move these into a static property on Rectangle?
-                var points = [
-                    'TopLeft', 'TopRight', 'BottomLeft', 'BottomRight',
-                    'LeftCenter', 'TopCenter', 'RightCenter', 'BottomCenter'
-                ];
-                for (var i = 0; i < 8 && !res; i++) {
-                    res = checkPoint('bounds', points[i]);
-                }
-            }
-            res = filter(res);
-        }
+        // var checkPosition = options.position,
+        //     checkCenter = options.center,
+        //     checkBounds = options.bounds;
+        // // Ignore top level layers by checking for _parent:
+        // if (checkSelf && this._parent
+        //         && (checkPosition || checkCenter || checkBounds)) {
+        //     if (checkCenter || checkBounds) {
+        //         // Get the internal, untransformed bounds, as we check against
+        //         // transformed points.
+        //         bounds = this.getInternalBounds();
+        //     }
+        //     res = checkPosition && checkPoint('position') ||
+        //             checkCenter && checkPoint('center', 'Center');
+        //     if (!res && checkBounds) {
+        //         // TODO: Move these into a static property on Rectangle?
+        //         var points = [
+        //             'TopLeft', 'TopRight', 'BottomLeft', 'BottomRight',
+        //             'LeftCenter', 'TopCenter', 'RightCenter', 'BottomCenter'
+        //         ];
+        //         for (var i = 0; i < 8 && !res; i++) {
+        //             res = checkPoint('bounds', points[i]);
+        //         }
+        //     }
+        //     res = filter(res);
+        // }
 
-        if (!res) {
-            res = this._hitTestChildren(point, options, viewMatrix)
-                // NOTE: We don't call match on _hitTestChildren() because
-                // it is already called internally.
-                || checkSelf
-                    && filter(this._hitTestSelf(point, options, viewMatrix,
-                        // If the item has a non-scaling stroke, we need to
-                        // apply the inverted viewMatrix to stroke dimensions.
-                        this.getStrokeScaling() ? null
-                            : viewMatrix._shiftless().invert()))
-                || null;
-        }
+        var res = this._hitTestSelf(point, options);
         // Transform the point back to the outer coordinate system.
         if (res && res.point) {
             res.point = matrix.transform(res.point);

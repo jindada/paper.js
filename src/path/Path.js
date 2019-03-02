@@ -225,11 +225,14 @@ var Path = PathItem.extend(/** @lends Path# */{
             segments = this._segments;
         if (!curves) {
             var length = this._countCurves();
+
             curves = this._curves = new Array(length);
-            for (var i = 0; i < length; i++)
-                curves[i] = new Curve(this, segments[i],
-                    // Use first segment for segment2 of closing curve
-                    segments[i + 1] || segments[0]);
+            
+            for (var i = 0; i < length; i++) {
+                var segment = segments[i + 1] || segments[0];
+                curves[i] = new Curve(this, segments[i], segment);
+            }
+                
         }
         return curves;
     },
@@ -393,14 +396,14 @@ var Path = PathItem.extend(/** @lends Path# */{
             var segment = segs[i];
             // If the segments belong to another path already, clone them before
             // adding:
-            if (segment._path)
-                segment = segs[i] = segment.clone();
+            // if (segment._path)
+            //     segment = segs[i] = segment.clone();
             segment._path = this;
             segment._index = index + i;
             // If parts of this segment are selected, adjust the internal
             // _segmentSelection now
-            if (segment._selection)
-                this._updateSelection(segment, 0, segment._selection);
+            // if (segment._selection)
+            //     this._updateSelection(segment, 0, segment._selection);
         }
         if (append) {
             // Append them all at the end.
@@ -422,11 +425,11 @@ var Path = PathItem.extend(/** @lends Path# */{
                     : index,
                 insert = start,
                 end = Math.min(start + amount, total);
-            if (segs._curves) {
-                // Reuse removed curves.
-                curves.splice.apply(curves, [start, 0].concat(segs._curves));
-                insert += segs._curves.length;
-            }
+            // if (segs._curves) {
+            //     // Reuse removed curves.
+            //     curves.splice.apply(curves, [start, 0].concat(segs._curves));
+            //     insert += segs._curves.length;
+            // }
             // Insert new curves, but do not initialize their segments yet,
             // since #_adjustCurves() handles all that for us.
             for (var i = insert; i < end; i++)
@@ -445,26 +448,26 @@ var Path = PathItem.extend(/** @lends Path# */{
      */
     _adjustCurves: function(start, end) {
         var segments = this._segments,
-            curves = this._curves,
-            curve;
+            curves = this._curves;
         for (var i = start; i < end; i++) {
-            curve = curves[i];
-            curve._path = this;
-            curve._segment1 = segments[i];
-            curve._segment2 = segments[i + 1] || segments[0];
-            curve._changed();
+            curves[i]._path = this;
+            curves[i]._segment1 = segments[i];
+            curves[i]._segment2 = segments[i + 1] || segments[0];
+            // curve._changed();
         }
         // If it's the first segment, correct the last segment of closed
         // paths too:
-        if (curve = curves[this._closed && !start ? segments.length - 1
-                : start - 1]) {
+        var curve = curves[this._closed && !start ? segments.length - 1
+            : start - 1];
+        if (curve) {
             curve._segment2 = segments[start] || segments[0];
-            curve._changed();
+            // curve._changed();
         }
         // Fix the segment after the modified range, if it exists
-        if (curve = curves[end]) {
+        curve = curves[end];
+        if (curve) {
             curve._segment1 = segments[end];
-            curve._changed();
+            // curve._changed();
         }
     },
 
@@ -590,11 +593,7 @@ var Path = PathItem.extend(/** @lends Path# */{
      * myPath.segments[2].selected = true;
      */
     insert: function(index, segment1 /*, segment2, ... */) {
-        return arguments.length > 2 && typeof segment1 !== 'number'
-            // insertSegments
-            ? this._add(Segment.readList(arguments, 1), index)
-            // insertSegment
-            : this._add([ Segment.read(arguments, 1) ], index)[0];
+        return this._add([ Segment.read(arguments, 1) ], index)[0];
     },
 
     addSegment: function(/* segment */) {
@@ -1648,166 +1647,108 @@ var Path = PathItem.extend(/** @lends Path# */{
         return false;
     },
 
-    _hitTestSelf: function(point, options, viewMatrix, strokeMatrix) {
-        var that = this,
-            style = this.getStyle(),
-            segments = this._segments,
-            numSegments = segments.length,
-            closed = this._closed,
-            // transformed tolerance padding, see Item#hitTest. We will add
-            // stroke padding on top if stroke is defined.
-            tolerancePadding = options._tolerancePadding,
-            strokePadding = tolerancePadding,
-            join, cap, miterLimit,
-            area, loc, res,
-            hitStroke = options.stroke && style.hasStroke(),
-            hitFill = options.fill && style.hasFill(),
-            hitCurves = options.curves,
-            strokeRadius = hitStroke
-                    ? style.getStrokeWidth() / 2
-                    // Set radius to 0 when we're hit-testing fills with
-                    // tolerance, to handle tolerance through stroke hit-test
-                    // functionality. Also use 0 when hit-testing curves.
-                    : hitFill && options.tolerance > 0 || hitCurves
-                        ? 0 : null;
-        if (strokeRadius !== null) {
-            if (strokeRadius > 0) {
-                join = style.getStrokeJoin();
-                cap = style.getStrokeCap();
-                miterLimit = style.getMiterLimit();
-                // Add the stroke radius to tolerance padding, taking
-                // #strokeScaling into account through _getStrokeMatrix().
-                strokePadding = strokePadding.add(
-                    Path._getStrokePadding(strokeRadius, strokeMatrix));
-            } else {
-                join = cap = 'round';
-            }
-            // Using tolerance padding for fill tests will also work if there is
-            // no stroke, in which case radius = 0 and we will test for stroke
-            // locations to extend the fill area by tolerance.
-        }
+    _hitTestSelf: function(point, options) {
+        var that = this;
+        // var closed = this._closed;
+        // transformed tolerance padding, see Item#hitTest. We will add
+        // stroke padding on top if stroke is defined.
+        var strokePadding = options._tolerancePadding;
+
+        var loc, res;
+
+        // var join = style.getStrokeJoin();
+        // var cap = style.getStrokeCap();
+        // var miterLimit = style.getMiterLimit();
+
+        // Add the stroke radius to tolerance padding, taking
+        // #strokeScaling into account through _getStrokeMatrix().
+        // strokePadding = strokePadding.add(
+        //     Path._getStrokePadding(strokeRadius, undefined));
 
         function isCloseEnough(pt, padding) {
             return point.subtract(pt).divide(padding).length <= 1;
         }
-
-        function checkSegmentPoint(seg, pt, name) {
-            if (!options.selected || pt.isSelected()) {
-                var anchor = seg._point;
-                if (pt !== anchor)
-                    pt = pt.add(anchor);
-                if (isCloseEnough(pt, strokePadding)) {
-                    return new HitResult(name, that, {
-                        segment: seg,
-                        point: pt
-                    });
-                }
+        
+        function checkSegmentPoint(seg) {
+            var anchor = seg._point;
+            if (isCloseEnough(anchor, strokePadding)) {
+                return new HitResult('segment', that, {
+                    segment: seg,
+                    point: anchor
+                });
             }
         }
-
-        function checkSegmentPoints(seg, ends) {
-            // Note, when checking for ends, we don't also check for handles,
-            // since this will happen afterwards in a separate loop, see below.
-            return (ends || options.segments)
-                && checkSegmentPoint(seg, seg._point, 'segment')
-                || (!ends && options.handles) && (
-                    checkSegmentPoint(seg, seg._handleIn, 'handle-in') ||
-                    checkSegmentPoint(seg, seg._handleOut, 'handle-out'));
-        }
-
         // Code to check stroke join / cap areas
+        // function addToArea(point) {
+        //     area.add(point);
+        // }
 
-        function addToArea(point) {
-            area.add(point);
-        }
+        // function checkSegmentStroke(segment) {
+        //     // Handle joins / caps that are not round specifically, by
+        //     // hit-testing their polygon areas.
+        //     var isJoin = closed || segment._index > 0
+        //             && segment._index < numSegments - 1;
 
-        function checkSegmentStroke(segment) {
-            // Handle joins / caps that are not round specifically, by
-            // hit-testing their polygon areas.
-            var isJoin = closed || segment._index > 0
-                    && segment._index < numSegments - 1;
-            if ((isJoin ? join : cap) === 'round') {
-                // Round join / cap is easy to handle.
-                return isCloseEnough(segment._point, strokePadding);
-            } else {
-                // Create an 'internal' path without id and outside the scene
-                // graph to run the hit-test on it.
-                area = new Path({ internal: true, closed: true });
-                if (isJoin) {
-                    // Only add bevels to segments that aren't smooth.
-                    if (!segment.isSmooth()) {
-                        // _addBevelJoin() handles both 'bevel' and 'miter'.
-                        Path._addBevelJoin(segment, join, strokeRadius,
-                               miterLimit, null, strokeMatrix, addToArea, true);
-                    }
-                } else if (cap === 'square') {
-                    Path._addSquareCap(segment, cap, strokeRadius, null,
-                            strokeMatrix, addToArea, true);
-                }
-                // See if the above produced an area to check for
-                if (!area.isEmpty()) {
-                    // Also use stroke check with tolerancePadding if the point
-                    // is not inside the area itself, to use test caps and joins
-                    // with same tolerance.
-                    var loc;
-                    return area.contains(point)
-                        || (loc = area.getNearestLocation(point))
-                            && isCloseEnough(loc.getPoint(), tolerancePadding);
-                }
-            }
-        }
+        //     var area = new Path({ internal: true, closed: true });
+        //     console.log("isJoin", isJoin);
+        //     if (isJoin) {
+        //         // Only add bevels to segments that aren't smooth.
+        //         if (!segment.isSmooth()) {
+        //             // _addBevelJoin() handles both 'bevel' and 'miter'.
+        //             Path._addBevelJoin(segment, join, strokeRadius,
+        //                 miterLimit, null, strokeMatrix, addToArea, true);
+        //         }
+        //     }
+        //     // See if the above produced an area to check for
+        //     if (!area.isEmpty()) {
+        //         // Also use stroke check with tolerancePadding if the point
+        //         // is not inside the area itself, to use test caps and joins
+        //         // with same tolerance.
+        //         var loc;
+        //         return area.contains(point)
+        //             || (loc = area.getNearestLocation(point))
+        //                 && isCloseEnough(loc.getPoint(), tolerancePadding);
+        //     }
+        // }
 
         // If we're asked to query for segments, ends or handles, do all that
         // before stroke or fill.
-        if (options.ends && !options.segments && !closed) {
-            if (res = checkSegmentPoints(segments[0], true)
-                    || checkSegmentPoints(segments[numSegments - 1], true))
+        for (var i = 0; i < this._segments.length; i++)
+            if (res = checkSegmentPoint(this._segments[i]))
                 return res;
-        } else if (options.segments || options.handles) {
-            for (var i = 0; i < numSegments; i++)
-                if (res = checkSegmentPoints(segments[i]))
-                    return res;
-        }
+
+
+        // 判断在不在路径上
         // If we're querying for stroke, perform that before fill
-        if (strokeRadius !== null) {
-            loc = this.getNearestLocation(point);
-            // Note that paths need at least two segments to have an actual
-            // stroke. But we still check for segments with the radius fallback
-            // check if there is only one segment.
-            if (loc) {
-                // Now see if we're on a segment, and if so, check for its
-                // stroke join / cap first. If not, do a normal radius check
-                // for round strokes.
-                var time = loc.getTime();
-                if (time === 0 || time === 1 && numSegments > 1) {
-                    if (!checkSegmentStroke(loc.getSegment()))
-                        loc = null;
-                } else if (!isCloseEnough(loc.getPoint(), strokePadding)) {
-                    loc = null;
-                }
-            }
-            // If we have miter joins, we may not be done yet, since they can be
-            // longer than the radius. Check for each segment within reach now.
-            if (!loc && join === 'miter' && numSegments > 1) {
-                for (var i = 0; i < numSegments; i++) {
-                    var segment = segments[i];
-                    if (point.getDistance(segment._point)
-                            <= miterLimit * strokeRadius
-                            && checkSegmentStroke(segment)) {
-                        loc = segment.getLocation();
-                        break;
-                    }
-                }
+        loc = this.getNearestLocation(point);
+        // Note that paths need at least two segments to have an actual
+        // stroke. But we still check for segments with the radius fallback
+        // check if there is only one segment.
+        if (loc) {
+            // Now see if we're on a segment, and if so, check for its
+            // stroke join / cap first. If not, do a normal radius check
+            // for round strokes.
+            if (!isCloseEnough(loc.getPoint(), strokePadding)) {
+                loc = null;
             }
         }
+        // If we have miter joins, we may not be done yet, since they can be
+        // longer than the radius. Check for each segment within reach now.
+        // if (!loc && numSegments > 1) {
+        //     for (var i = 0; i < numSegments; i++) {
+        //         var segment = segments[i];
+        //         if (point.getDistance(segment._point)
+        //                 <= miterLimit * strokeRadius
+        //                 && checkSegmentStroke(segment)) {
+        //             loc = segment.getLocation();
+        //             break;
+        //         }
+        //     }
+        // }
         // Don't process loc yet, as we also need to query for stroke after fill
         // in some cases. Simply skip fill query if we already have a matching
         // stroke. If we have a loc and no stroke then it's a result for fill.
-        return !loc && hitFill && this._contains(point)
-                || loc && !hitStroke && !hitCurves
-                    ? new HitResult('fill', this)
-                    : loc
-                        ? new HitResult(hitStroke ? 'stroke' : 'curve', this, {
+        return loc ? new HitResult('stroke', that, {
                             location: loc,
                             // It's fine performance wise to call getPoint()
                             // again since it was already called before.
