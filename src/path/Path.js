@@ -736,13 +736,13 @@ var Path = PathItem.extend(/** @lends Path# */{
         if (!amount)
             return removed;
         // Update selection state accordingly
-        for (var i = 0; i < amount; i++) {
-            var segment = removed[i];
-            if (segment._selection)
-                this._updateSelection(segment, segment._selection, 0);
-            // Clear the indices and path references of the removed segments
-            segment._index = segment._path = null;
-        }
+        // for (var i = 0; i < amount; i++) {
+        //     var segment = removed[i];
+        //     if (segment._selection)
+        //         this._updateSelection(segment, segment._selection, 0);
+        //     // Clear the indices and path references of the removed segments
+        //     segment._index = segment._path = null;
+        // }
         // Adjust the indices of the segments above.
         for (var i = start, l = segments.length; i < l; i++)
             segments[i]._index = i;
@@ -1282,7 +1282,6 @@ var Path = PathItem.extend(/** @lends Path# */{
     smooth: function(options) {
         var that = this,
             opts = options || {},
-            type = opts.type || 'asymmetric',
             segments = this._segments,
             length = segments.length,
             closed = this._closed;
@@ -1293,19 +1292,20 @@ var Path = PathItem.extend(/** @lends Path# */{
         // curves, it is inclusive, handled by the `offset` parameter.
         function getIndex(value, _default) {
             // Support both Segment and Curve through #index getter.
-            var index = value && value.index;
-            if (index != null) {
-                // Make sure the segment / curve is not from a wrong path.
-                var path = value.path;
-                if (path && path !== that)
-                    throw new Error(value._class + ' ' + index + ' of ' + path
-                            + ' is not part of ' + that);
-                // Add offset of 1 to curves to reach their end segment.
-                if (_default && value instanceof Curve)
-                    index++;
-            } else {
-                index = typeof value === 'number' ? value : _default;
-            }
+            // debugger;
+            // var index = value && value.index;
+            // if (false) {
+            //     // Make sure the segment / curve is not from a wrong path.
+            //     var path = value.path;
+            //     if (path && path !== that)
+            //         throw new Error(value._class + ' ' + index + ' of ' + path
+            //                 + ' is not part of ' + that);
+            //     // Add offset of 1 to curves to reach their end segment.
+            //     if (_default && value instanceof Curve)
+            //         index++;
+            // } else {
+            var index = typeof value === 'number' ? value : _default;
+            // }
             // Handle negative values based on whether a path is open or not:
             // Ranges on closed paths are allowed to wrapped around the
             // beginning/end (e.g. start near the end, end near the beginning),
@@ -1315,9 +1315,9 @@ var Path = PathItem.extend(/** @lends Path# */{
                     : index < 0 ? index + length : index, length - 1);
         }
 
-        var loop = closed && opts.from === undefined && opts.to === undefined,
-            from = getIndex(opts.from, 0),
-            to = getIndex(opts.to, length - 1);
+        var loop = closed && opts.from === undefined && opts.to === undefined;
+        var from = getIndex(opts.from, 0);
+        var to = getIndex(opts.to, length - 1);
 
         if (from > to) {
             if (closed) {
@@ -1328,7 +1328,8 @@ var Path = PathItem.extend(/** @lends Path# */{
                 to = tmp;
             }
         }
-        if (/^(?:asymmetric|continuous)$/.test(type)) {
+
+        // if (/^(?:asymmetric|continuous)$/.test(type)) {
             // Continuous smoothing approach based on work by Lubos Brieda,
             // Particle In Cell Consulting LLC, but further simplified by
             // addressing handle symmetry across segments, and the possibility
@@ -1339,8 +1340,7 @@ var Path = PathItem.extend(/** @lends Path# */{
             // We use different parameters for the two supported smooth methods
             // that use this algorithm: continuous and asymmetric. asymmetric
             // was the only approach available in v0.9.25 & below.
-            var asymmetric = type === 'asymmetric',
-                min = Math.min,
+            var min = Math.min,
                 amount = to - from + 1,
                 n = amount - 1,
                 // Overlap by up to 4 points on closed paths since a current
@@ -1398,10 +1398,10 @@ var Path = PathItem.extend(/** @lends Path# */{
             for (var i = 1; i < n; i++) {
                 var internal = i < n_1,
                     //  internal--(I)  asymmetric--(R) (R)--continuous
-                    a = internal ? 1 : asymmetric ? 1 : 2,
-                    b = internal ? 4 : asymmetric ? 2 : 7,
-                    u = internal ? 4 : asymmetric ? 3 : 8,
-                    v = internal ? 2 : asymmetric ? 0 : 1,
+                    a = internal ? 1 : 2,
+                    b = internal ? 4 : 7,
+                    u = internal ? 4 : 8,
+                    v = internal ? 2 : 1,
                     m = a / f;
                 f = rf[i] = b - m;
                 x = rx[i] = u * knots[i]._x + v * knots[i + 1]._x - m * x;
@@ -1429,13 +1429,13 @@ var Path = PathItem.extend(/** @lends Path# */{
                 if (loop || i > paddingLeft)
                     segment.setHandleIn(-hx, -hy);
             }
-        } else {
-            // All other smoothing methods are handled directly on the segments:
-            for (var i = from; i <= to; i++) {
-                segments[i < 0 ? i + length : i].smooth(opts,
-                        !loop && i === from, !loop && i === to);
-            }
-        }
+        // } else {
+        //     // All other smoothing methods are handled directly on the segments:
+        //     for (var i = from; i <= to; i++) {
+        //         segments[i < 0 ? i + length : i].smooth(opts,
+        //                 !loop && i === from, !loop && i === to);
+        //     }
+        // }
     },
 
     // TODO: reduceSegments([flatness])
