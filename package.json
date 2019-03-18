@@ -20,7 +20,8 @@
     "docs": "gulp docs",
     "load": "gulp load",
     "jshint": "gulp jshint",
-    "test": "gulp test"
+    "test": "gulp test",
+    "service": "python -m SimpleHTTPServer 8080"
   },
   "files": ["AUTHORS.md", "CHANGELOG.md", "dist/", "examples/", "LICENSE.txt", "README.md"],
   "engines": {

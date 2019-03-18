@@ -4,7 +4,12 @@
     <meta charset="UTF-8">
     <title>Simplify</title>
     <link rel="stylesheet" href="../css/style.css">
-    <script type="text/javascript" src="../../dist/paper-full.js"></script>
+    <script type="text/javascript" src="../../src/paper.js"></script>
+    <script type="text/javascript" src="../../src/options.js"></script>
+    <script type="text/javascript" src="../../src/load.js"></script>
+    <script type="text/javascript" src="../../src/init.js"></script>
+    <script type="text/javascript" src="../../src/constants.js"></script>
+    <script type="text/javascript" src="../../src/export.js"></script>
     <script type="text/paperscript" canvas="canvas">
 
         var hitOptions = {
@@ -33,28 +38,29 @@
                         var location = hitResult.location;
                         segment = path.insert(location.index + 1, event.point);
                     }
-
+                    console.log(segment)
                     var offset = path.getOffsetOf(segment.point) || 0
-                    debugger;
-                    console.log(path.length);
+                    console.log("path.length", path.length)
+                    console.log("offset", offset)
+                    console.log("path.length > offset", path.length < offset);
 
-                    var point1 = path.getPointAt(path.length < offset + 40 ? path.length : offset + 40);
+                    var point1 = path.getPointAt(offset + 40);
 
-                    // Create a small circle shaped path at the point:
-                    new Path.Circle({
-                        center: point1,
-                        radius: 3,
-                        fillColor: 'red'
-                    });
+                    console.log("ffset - 40 > 0", 0 < offset - 40);
+                    
+                    var point2 = path.getPointAt(offset - 40 > 0 ? offset - 40 : path.length - 40 + offset);
 
-                    var point2 = path.getPointAt(0 < offset - 40 ? offset - 40 : 0);
+                    var index = removeNearPoint(segment, 40);
+                    console.log(index)
+                    var preSegment = path.insert(index + 1 , point1);
+                    var nextSegment = path.insert(index, point2);
 
-                    // Create a small circle shaped path at the point:
-                    new Path.Circle({
-                        center: point2,
-                        radius: 3,
-                        fillColor: 'blue'
-                    });
+                    removeNextPoint(preSegment, 30)
+                    removeNextPoint(nextSegment, 30)
+
+                    preSegment.fixed = true;
+                    nextSegment.fixed = true;
+                    path.smooth({ from: index, to: index + 1 })
                 }
             } else {
                 path = new Path({
@@ -64,6 +70,41 @@
                 path.selected = true;
             }
         }
+
+        function removeNearPoint(segment, distance) {
+            var d = -1;
+            var next = segment.next;
+            while (0 !== d) {
+                d = next.point.getDistance(segment.point);
+                var _next = next.next;
+                if (d < distance && 0 !== d) {
+                    next.remove();
+                }
+                next = _next;
+            }
+            return segment.index;
+        };
+
+        function removeNextPoint(segment, distance) {
+
+            var d = -1;
+            var next = segment.next;
+            var point = segment.point;
+    
+            while (0 !== d) {
+                var newD = next.point.getDistance(point);
+                // 循环到了闭环中的前面点
+                if (newD < d) break;
+                d = newD;
+                var _next = next.next;
+                if (distance > d && 0 !== d) {
+                    next.remove();
+                }
+                next = _next;
+            }
+            return segment.index;
+        };
+    
 
         function onMouseDrag(event) {
             if (closed) {

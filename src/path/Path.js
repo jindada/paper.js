@@ -473,6 +473,7 @@ var Path = PathItem.extend(/** @lends Path# */{
      * on its amount of #segments and #closed state.
      */
     _countCurves: function() {
+        debugger;
         var length = this._segments.length;
         // Reduce length by one if it's an open path:
         return !this._closed && length > 0 ? length - 1 : length;
@@ -727,6 +728,8 @@ var Path = PathItem.extend(/** @lends Path# */{
      * path.selected = true;
      */
     removeSegments: function(start, end, _includeCurves) {
+        console.log(this._segments.length);
+        console.log(this._curves.length);
         start = start || 0;
         end = Base.pick(end, this._segments.length);
         var segments = this._segments,
